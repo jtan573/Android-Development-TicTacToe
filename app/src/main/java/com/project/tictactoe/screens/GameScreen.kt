@@ -127,7 +127,6 @@ fun GameScreen(gameViewModel: GameViewModel = viewModel(), player: Player, navCo
 
             // When game ends
             // First scenario: A draw
-
             if (board.isBoardFull() && !board.checkForWin()) {
                 gameViewModel.gameFinish(GameResult.DRAW)
                 GameEndDialog(GameResult.DRAW, navController)
@@ -151,7 +150,7 @@ fun BoardView(gameViewModel: GameViewModel, cell: Cell, currentPlayer: Player) {
     if (currentPlayer.isMyTurn) {
         Button(
             onClick = {
-                if (cell.isChosen.value) {
+                if (cell.belongsToPlayer != 0) {
                     // TODO: send an alert to say cannot click
                 } else {
                     cell.isSelected(currentPlayer)

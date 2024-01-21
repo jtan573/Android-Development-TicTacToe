@@ -25,11 +25,9 @@ import kotlinx.serialization.json.jsonObject
 data class Cell(
     val rowId: Int,
     val colId: Int,
-    var belongsToPlayer: Int = 0,
-    var isChosen: MutableState<Boolean> = mutableStateOf(false)
+    var belongsToPlayer: Int = 0
 ) {
     fun isSelected(player: Player) {
-        isChosen.value = true
         belongsToPlayer = if (player.isInviter) {
             1
         } else {
@@ -56,7 +54,7 @@ data class Board(
 
     fun isBoardFull(): Boolean {
         cells.forEach {
-            if (it.isChosen == mutableStateOf(false))
+            if (it.belongsToPlayer == 0)
                 return false
         }
         return true
@@ -121,7 +119,7 @@ class GameViewModel: ViewModel() {
         val tempCards = mutableStateListOf<Cell>()
         for (row in 0..2) {
             for (col in 0..2) {
-                tempCards.add(Cell(rowId = row, colId = col, isChosen = mutableStateOf(false)))
+                tempCards.add(Cell(rowId = row, colId = col))
             }
         }
         cells.addAll(tempCards)

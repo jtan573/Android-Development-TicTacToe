@@ -50,8 +50,7 @@ fun GameScreen(gameViewModel: GameViewModel = viewModel(), player: Player, navCo
 
     val board = gameViewModel.getBoard()
     var currentPlayer by remember { mutableStateOf(gameViewModel.getCurrentPlayer()) }
-    var isMyTurn = true
-    // var isMyTurn by remember { mutableStateOf(player.isMyTurn) }
+    var isMyTurn by remember { mutableStateOf(player.isMyTurn) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),

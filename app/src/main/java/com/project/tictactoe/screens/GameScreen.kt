@@ -110,7 +110,7 @@ fun GameScreen(gameViewModel: GameViewModel = viewModel(), player: Player, navCo
             }
 
             // Continue game while board is not full and there is no winner
-            while (!gameViewModel.isBoardFull() && !gameViewModel.checkForWinner()) {
+            while (!gameViewModel.isBoardFull() && (gameViewModel.checkForWinner().isNotEmpty())) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -119,54 +119,54 @@ fun GameScreen(gameViewModel: GameViewModel = viewModel(), player: Player, navCo
                 ) {
                     for (row in 0..2) {
                         for (col in 0..2) {
-                           item { BoardView(gameViewModel, board[row][col], player) }
+                           item { BoardView(gameViewModel, board[row][col], row, col, player) }
                         }
                     }
                 }
             }
-            /*
-            // When game ends
+
             // First scenario: A draw
-            if (gameViewModel.isBoardFull() && !gameViewModel.checkForWinner()) {
+            if (gameViewModel.isBoardFull() && (gameViewModel.checkForWinner().isNotEmpty())) {
                 gameViewModel.gameFinish(GameResult.DRAW)
                 GameEndDialog(GameResult.DRAW, navController)
             }
             // Second scenario: A win from current player
-            else {
+            else if (gameViewModel.checkForWinner() == currentPlayer) {
                 gameViewModel.gameFinish(GameResult.WIN)
                 GameEndDialog(GameResult.WIN, navController)
             }
-            */
+            else {
+                gameViewModel.gameFinish(GameResult.LOSE)
+                GameEndDialog(GameResult.LOSE, navController)
+            }
         }
     }
 }
 
 @Composable
-fun BoardView(gameViewModel: GameViewModel, cell: String , currentPlayer: Player) {
+fun BoardView(gameViewModel: GameViewModel, cell: String, row: Int, col: Int, currentPlayer: Player) {
 
     var playerAssignment: String = cell
 
     // Buttons are only activated if it is the current player's turn
     if (currentPlayer.isMyTurn == playerAssignment) {
-        Button(
-            onClick = {
-                if (cell.isNotEmpty()) {
-                    // TODO: send an alert to say cannot click
-                } else {
-                    gameViewModel.releaseTurn()
-                    gameViewModel.switchPlayer()
-                }
-            },
-            modifier = Modifier.aspectRatio(1f),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
-            shape = RectangleShape
-        ) {
+        if (playerAssignment.isEmpty()) {
+            Button(
+                onClick = {
+                    gameViewModel.makeMove(row, col)
+                },
+                modifier = Modifier.aspectRatio(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                shape = RectangleShape
+            ) {}
+        } else {
             if (playerAssignment == "X") {
                 Icon(Icons.Filled.Clear, contentDescription = "player 1 symbol")
             } else if (playerAssignment == "O") {
                 Icon(Icons.Filled.FavoriteBorder, contentDescription = "player 2 symbol")
             }
         }
+
     }
     else {
         if (playerAssignment == "X") {

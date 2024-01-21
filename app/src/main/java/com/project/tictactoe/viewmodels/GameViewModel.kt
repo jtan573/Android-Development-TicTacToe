@@ -51,17 +51,16 @@ class GameViewModel: ViewModel() {
             checkForWinner()
             switchPlayer()
             releaseTurn()
-            sendTurn()
         }
     }
 
     // Function to switch to the next player
-    fun switchPlayer() {
+    private fun switchPlayer() {
         currentPlayer = if (currentPlayer == player1Symbol) player2Symbol else player1Symbol
     }
 
     // Function to check for a winner
-    fun checkForWinner(): Boolean {
+    fun checkForWinner(): String {
         // three in a row
         for (row in 0..2) {
             // Check if card in the row was chosen by any player before, else move to next row immediately
@@ -70,7 +69,7 @@ class GameViewModel: ViewModel() {
             if ((gameBoard[row][0] == gameBoard[row][1]) &&
                 (gameBoard[row][1] == gameBoard[row][2])
             ) {
-                return true
+                return gameBoard[row][0]
             }
         }
 
@@ -81,30 +80,30 @@ class GameViewModel: ViewModel() {
                 continue
             if ((gameBoard[0][col] == gameBoard[1][col]) &&
                 (gameBoard[1][col] == gameBoard[2][col])) {
-                return true
+                return gameBoard[0][col]
             }
         }
 
         // three in a diagonal (sloping DOWN left to right)
         if (gameBoard[0][0].isEmpty() || gameBoard[1][1].isEmpty() || gameBoard[2][2].isEmpty()) {
-            return false
+            return ""
         }
         else {
             if ((gameBoard[0][0] == gameBoard[1][1]) &&
                 (gameBoard[1][1] == gameBoard[2][2]))
-                return true
+                return gameBoard[0][0]
         }
 
         // three in a diagonal (sloping UP left to right)
         if (gameBoard[2][0].isEmpty() || gameBoard[1][1].isEmpty() || gameBoard[0][2].isEmpty()) {
-            return false
+            return ""
         }
         else {
             if ((gameBoard[2][0] == gameBoard[1][1]) &&
                 (gameBoard[1][1] == gameBoard[0][2]))
-                return true
+                return gameBoard[2][0]
         }
-        return false
+        return ""
     }
 
     fun isBoardFull(): Boolean {
@@ -122,9 +121,6 @@ class GameViewModel: ViewModel() {
         viewModelScope.launch {
             SupabaseService.releaseTurn()
         }
-    }
-
-    fun sendTurn() {
         viewModelScope.launch {
             SupabaseService.sendTurn()
         }

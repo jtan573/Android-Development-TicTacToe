@@ -38,13 +38,9 @@ import com.project.tictactoe.network.SupabaseService.joinLobby
  * Home screen is the main view of the game.
  * The main section has a vertical menu which these items:
  *     1. Play: Take the user further to next screen to find a player and start the game
- *     2. Settings: Adjust settings and other necessary settings that can affect the game playing
- *     3. How to play: A quick guide help screen
- *     4. About Us: A short info about developers
- *     5. Exit: Exit the app
+ *     2. How to play: A quick guide help screen
  *
  * On top header, we have the game name and profile icon (clickable)
- * on footer: network connection status and other necessary but not important info
  */
 @Composable
 fun HomeScreen(navController: NavController, player: Player) {

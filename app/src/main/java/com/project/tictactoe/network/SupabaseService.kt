@@ -35,7 +35,7 @@ data class Player(
     @SerialName("name")
     var name: String,
     @SerialName("isMyTurn")
-    var isMyTurn: Boolean = false,
+    var isMyTurn: String,
     @SerialName("isInviter")
     var isInviter: Boolean = false
 )

@@ -143,7 +143,7 @@ fun UserRow(currentPlayer: Player, user: Player, lobbyViewModel: LobbyViewModel)
         onClick = {
             lobbyViewModel.sendInvitation(user)
             // Player who sent an invite becomes the Inviter, and hence player 1
-            currentPlayer.isMyTurn = true
+            currentPlayer.isMyTurn = "X"
             currentPlayer.isInviter = true
         }
     ) {

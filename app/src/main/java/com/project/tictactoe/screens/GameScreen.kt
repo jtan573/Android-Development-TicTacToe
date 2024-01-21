@@ -92,7 +92,7 @@ fun GameScreen(gameViewModel: GameViewModel = viewModel(), player: Player, navCo
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (isMyTurn) {
+            if (isMyTurn == currentPlayer) {
                 Text(
                     modifier = Modifier.padding(10.dp),
                     text = "Your Turn",
@@ -147,14 +147,14 @@ fun BoardView(gameViewModel: GameViewModel, cell: String , currentPlayer: Player
     var playerAssignment: String = cell
 
     // Buttons are only activated if it is the current player's turn
-    if (currentPlayer.isMyTurn) {
+    if (currentPlayer.isMyTurn == playerAssignment) {
         Button(
             onClick = {
                 if (cell.isNotEmpty()) {
                     // TODO: send an alert to say cannot click
                 } else {
                     gameViewModel.releaseTurn()
-                    currentPlayer.isMyTurn = false
+                    gameViewModel.switchPlayer()
                 }
             },
             modifier = Modifier.aspectRatio(1f),

@@ -56,7 +56,7 @@ class GameViewModel: ViewModel() {
     }
 
     // Function to switch to the next player
-    private fun switchPlayer() {
+    fun switchPlayer() {
         currentPlayer = if (currentPlayer == player1Symbol) player2Symbol else player1Symbol
     }
 

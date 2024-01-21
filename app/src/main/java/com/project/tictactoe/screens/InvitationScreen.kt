@@ -127,6 +127,7 @@ fun InviteRow(invite: Game, lobbyViewModel: LobbyViewModel) {
         IconButton(
             onClick = {
                 lobbyViewModel.acceptInvitation(invite)
+                invite.player2.isMyTurn = "O"
             }
         ) {
             Icon(imageVector = Icons.Filled.Check, contentDescription = "accept_invite")

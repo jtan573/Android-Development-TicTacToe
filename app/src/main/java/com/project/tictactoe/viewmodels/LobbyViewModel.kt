@@ -42,6 +42,8 @@ class LobbyViewModel: ViewModel() {
         viewModelScope.launch {
             SupabaseService.acceptInvite(game)
             SupabaseService.playerReady()
+            currentPlayer!!.isInviter = false
+            currentPlayer.isMyTurn = "O"
         }
     }
 

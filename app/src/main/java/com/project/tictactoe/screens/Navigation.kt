@@ -21,7 +21,7 @@ import com.project.tictactoe.network.SupabaseService.setPlayer
 fun Navigation() {
 
     val navController = rememberNavController()
-    val currentPlayer by remember { mutableStateOf(Player(name = "")) }
+    val currentPlayer by remember { mutableStateOf(Player(name = "", isMyTurn = "")) }
 
     Scaffold(
 

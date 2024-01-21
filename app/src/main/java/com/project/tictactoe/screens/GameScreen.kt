@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
@@ -44,16 +42,16 @@ import androidx.navigation.NavController
 import com.project.tictactoe.core.Screen
 import com.project.tictactoe.network.GameResult
 import com.project.tictactoe.network.Player
-import com.project.tictactoe.viewmodels.Cell
 import com.project.tictactoe.viewmodels.GameViewModel
 
 @SuppressLint("UnrememberedMutableState")
 @Composable
 fun GameScreen(gameViewModel: GameViewModel = viewModel(), player: Player, navController: NavController) {
 
-    val cells = gameViewModel.cells
-    val board = gameViewModel.board
-    var isMyTurn by remember { mutableStateOf(player.isMyTurn) }
+    val board = gameViewModel.getBoard()
+    var currentPlayer by remember { mutableStateOf(gameViewModel.getCurrentPlayer()) }
+    var isMyTurn = true
+    // var isMyTurn by remember { mutableStateOf(player.isMyTurn) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -111,23 +109,26 @@ fun GameScreen(gameViewModel: GameViewModel = viewModel(), player: Player, navCo
                     color = Color.DarkGray
                 )
             }
+
             // Continue game while board is not full and there is no winner
-            while (!board.isBoardFull() && !board.checkForWin()) {
+            while (!gameViewModel.isBoardFull() && !gameViewModel.checkForWinner()) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.padding(10.dp)
                 ) {
-                    items(cells) {
-                        BoardView(gameViewModel, it, player)
+                    for (row in 0..2) {
+                        for (col in 0..2) {
+                           item { BoardView(gameViewModel, board[row][col], player) }
+                        }
                     }
                 }
             }
-
+            /*
             // When game ends
             // First scenario: A draw
-            if (board.isBoardFull() && !board.checkForWin()) {
+            if (gameViewModel.isBoardFull() && !gameViewModel.checkForWinner()) {
                 gameViewModel.gameFinish(GameResult.DRAW)
                 GameEndDialog(GameResult.DRAW, navController)
             }
@@ -136,24 +137,23 @@ fun GameScreen(gameViewModel: GameViewModel = viewModel(), player: Player, navCo
                 gameViewModel.gameFinish(GameResult.WIN)
                 GameEndDialog(GameResult.WIN, navController)
             }
+            */
         }
-
-
     }
 }
 
 @Composable
-fun BoardView(gameViewModel: GameViewModel, cell: Cell, currentPlayer: Player) {
-    var playerAssignment: Int = cell.belongsToPlayer
+fun BoardView(gameViewModel: GameViewModel, cell: String , currentPlayer: Player) {
+
+    var playerAssignment: String = cell
 
     // Buttons are only activated if it is the current player's turn
     if (currentPlayer.isMyTurn) {
         Button(
             onClick = {
-                if (cell.belongsToPlayer != 0) {
+                if (cell.isNotEmpty()) {
                     // TODO: send an alert to say cannot click
                 } else {
-                    cell.isSelected(currentPlayer)
                     gameViewModel.releaseTurn()
                     currentPlayer.isMyTurn = false
                 }
@@ -162,21 +162,21 @@ fun BoardView(gameViewModel: GameViewModel, cell: Cell, currentPlayer: Player) {
             colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
             shape = RectangleShape
         ) {
-            if (playerAssignment == 1) {
+            if (playerAssignment == "X") {
                 Icon(Icons.Filled.Clear, contentDescription = "player 1 symbol")
-            } else if (playerAssignment == 2) {
+            } else if (playerAssignment == "O") {
                 Icon(Icons.Filled.FavoriteBorder, contentDescription = "player 2 symbol")
             }
         }
     }
     else {
-        if (playerAssignment == 1) {
+        if (playerAssignment == "X") {
             Card( modifier = Modifier.aspectRatio(1f),
                 border = BorderStroke(1.dp, Color.DarkGray)
             ) {
                 Icon(Icons.Filled.Clear, contentDescription = "player 1 symbol")
             }
-        } else if (playerAssignment == 2) {
+        } else if (playerAssignment == "O") {
             Card( modifier = Modifier.aspectRatio(1f),
                 border = BorderStroke(1.dp, Color.DarkGray)
             ) {

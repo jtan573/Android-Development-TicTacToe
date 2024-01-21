@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.sourceInformationMarkerEnd
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -22,55 +23,53 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 
-data class Cell(
-    val rowId: Int,
-    val colId: Int,
-    var belongsToPlayer: Int = 0
-) {
-    fun isSelected(player: Player) {
-        belongsToPlayer = if (player.isInviter) {
-            1
-        } else {
-            2
+class GameViewModel: ViewModel() {
+
+    private val boardSize = 3
+    private val player1Symbol = "X"
+    private val player2Symbol = "O"
+
+    // 2D array representing the game board
+    private val gameBoard = Array(boardSize) { Array(boardSize) { "" } }
+
+    // Variable to keep track of the current player
+    private var currentPlayer = player1Symbol
+
+    // Get game board cells
+    fun getBoard(): Array<Array<String>> {
+        return gameBoard
+    }
+
+    fun getCurrentPlayer(): String {
+        return currentPlayer
+    }
+
+    // Function to make a move on the board
+    fun makeMove(row: Int, col: Int) {
+        if (gameBoard[row][col].isEmpty()) {
+            gameBoard[row][col] = currentPlayer
+            checkForWinner()
+            switchPlayer()
+            releaseTurn()
+            sendTurn()
         }
     }
-}
 
-data class Board(
-    val cells: MutableList<Cell>
-) {
-    private fun getBoard(): MutableList<Cell> {
-        return cells
+    // Function to switch to the next player
+    private fun switchPlayer() {
+        currentPlayer = if (currentPlayer == player1Symbol) player2Symbol else player1Symbol
     }
 
-    fun checkCell(row: Int, col: Int): Int {
-        cells.forEach {
-            if (it.rowId == row && it.colId == col) {
-                return it.belongsToPlayer
-            }
-        }
-        return 0
-    }
-
-    fun isBoardFull(): Boolean {
-        cells.forEach {
-            if (it.belongsToPlayer == 0)
-                return false
-        }
-        return true
-    }
-
-    /**
-     * Check if current player has won
-     */
-    fun checkForWin(): Boolean {
+    // Function to check for a winner
+    fun checkForWinner(): Boolean {
         // three in a row
         for (row in 0..2) {
             // Check if card in the row was chosen by any player before, else move to next row immediately
-            if (checkCell(row,0) == 0 || checkCell(row,1) == 0 || checkCell(row,2) == 0)
+            if (gameBoard[row][0].isEmpty() || gameBoard[row][1].isEmpty() || gameBoard[row][2].isEmpty())
                 continue
-            if ((checkCell(row,0) == checkCell(row,1)) &&
-                (checkCell(row,1) == checkCell(row,2))) {
+            if ((gameBoard[row][0] == gameBoard[row][1]) &&
+                (gameBoard[row][1] == gameBoard[row][2])
+            ) {
                 return true
             }
         }
@@ -78,56 +77,56 @@ data class Board(
         // three in a column
         for (col in 0..2) {
             // Check if card in the column was chosen by any player before, else move to next row immediately
-            if (checkCell(0,col) == 0 || checkCell(1,col) == 0 || checkCell(2,col) == 0)
+            if (gameBoard[0][col].isEmpty() || gameBoard[1][col].isEmpty() || gameBoard[2][col].isEmpty())
                 continue
-            if ((checkCell(0,col) == checkCell(1,col)) &&
-                (checkCell(1,col) == checkCell(2,col))) {
+            if ((gameBoard[0][col] == gameBoard[1][col]) &&
+                (gameBoard[1][col] == gameBoard[2][col])) {
                 return true
             }
         }
 
         // three in a diagonal (sloping DOWN left to right)
-        if (checkCell(0,0) == 0 || checkCell(1,1) == 0 || checkCell(2,2) == 0) {
+        if (gameBoard[0][0].isEmpty() || gameBoard[1][1].isEmpty() || gameBoard[2][2].isEmpty()) {
             return false
         }
         else {
-            if ((checkCell(0,0) == checkCell(1,1)) &&
-                (checkCell(1,1) == checkCell(2,2)))
+            if ((gameBoard[0][0] == gameBoard[1][1]) &&
+                (gameBoard[1][1] == gameBoard[2][2]))
                 return true
         }
 
         // three in a diagonal (sloping UP left to right)
-        if (checkCell(2,0) == 0 || checkCell(1,1) == 0 || checkCell(0,2) == 0) {
+        if (gameBoard[2][0].isEmpty() || gameBoard[1][1].isEmpty() || gameBoard[0][2].isEmpty()) {
             return false
         }
         else {
-            if ((checkCell(2,0) == checkCell(1,1)) &&
-                (checkCell(1,1) == checkCell(0,2)))
+            if ((gameBoard[2][0] == gameBoard[1][1]) &&
+                (gameBoard[1][1] == gameBoard[0][2]))
                 return true
         }
-
         return false
     }
-}
 
-class GameViewModel: ViewModel() {
-    val cells = mutableStateListOf<Cell>()
-    val board = Board(cells)
-
-    init {
-        cells.clear()
-        val tempCards = mutableStateListOf<Cell>()
+    fun isBoardFull(): Boolean {
         for (row in 0..2) {
             for (col in 0..2) {
-                tempCards.add(Cell(rowId = row, colId = col))
+                if (gameBoard[row][col].isEmpty()) {
+                    return false
+                }
             }
         }
-        cells.addAll(tempCards)
+        return true
     }
 
     fun releaseTurn() {
         viewModelScope.launch {
             SupabaseService.releaseTurn()
+        }
+    }
+
+    fun sendTurn() {
+        viewModelScope.launch {
+            SupabaseService.sendTurn()
         }
     }
 

@@ -29,7 +29,7 @@ fun Navigation() {
         NavHost(
             modifier = Modifier.padding(innerPadding),
             navController = navController,
-            startDestination = Screen.GameScreen.route
+            startDestination = Screen.WelcomeScreen.route
         ) {
             composable(Screen.WelcomeScreen.route) {
                 WelcomeScreen(navController = navController, player = currentPlayer)

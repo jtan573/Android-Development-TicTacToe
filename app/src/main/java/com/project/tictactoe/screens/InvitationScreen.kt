@@ -32,8 +32,7 @@ import com.project.tictactoe.viewmodels.LobbyViewModel
 
 @Composable
 fun InvitationScreen(lobbyViewModel: LobbyViewModel = viewModel(), navController: NavController) {
-
-    val gameInvites = lobbyViewModel.gameInvites
+    val gameInvites = lobbyViewModel.invitations.value
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),

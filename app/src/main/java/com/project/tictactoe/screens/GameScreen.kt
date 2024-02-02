@@ -1,59 +1,86 @@
-package com.project.tictactoe.screens
+package com.tictactoe.screen
 
-import android.annotation.SuppressLint
-import androidx.compose.foundation.BorderStroke
+
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.material.AlertDialog
-import androidx.compose.material.TopAppBar
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.Icon
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.project.tictactoe.core.Screen
+import androidx.compose.runtime.rememberCoroutineScope
+import com.tictactoe.viewmodels.SharedViewModel
+import kotlinx.coroutines.launch
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
+import androidx.compose.material.TopAppBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import com.project.tictactoe.network.GameResult
-import com.project.tictactoe.network.Player
+import com.project.tictactoe.core.Screen
+import com.project.tictactoe.network.SupabaseService
 import com.project.tictactoe.viewmodels.GameViewModel
 
-@SuppressLint("UnrememberedMutableState")
+
 @Composable
-fun GameScreen(gameViewModel: GameViewModel = viewModel(), player: Player, navController: NavController) {
+fun GameScreen(navController: NavController, gameId: String? = null) {
+    val sharedViewModel: SharedViewModel = viewModel()
+    val gameViewModel: GameViewModel = viewModel()
+    val isMyTurn by sharedViewModel.isMyTurn.collectAsState()
+
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val opponentMove by sharedViewModel.opponentMove.collectAsState()
+
+
+    // when opponentMove varianle is not null, then update the board with opponent's move
+    if (opponentMove != null) {
+        gameViewModel.updateBoard(opponentMove!!.first, opponentMove!!.second, "O")
+    }
+
+    LaunchedEffect(isMyTurn) {
+        if (isMyTurn) {
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = "It's your turn!",
+                    duration = SnackbarDuration.Short
+                )
+            }
+        }
+    }
 
     val board = gameViewModel.getBoard()
-    var currentPlayer by remember { mutableStateOf(gameViewModel.getCurrentPlayer()) }
-    var isMyTurn by remember { mutableStateOf(player.isMyTurn) }
+    if (GameResult == GameResult.WIN || GameResult == GameResult.LOSE || GameResult == GameResult.DRAW) {
+        GameEndDialog(gameState = GameResult, navController = navController)
+    }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
                 modifier = Modifier
@@ -70,13 +97,24 @@ fun GameScreen(gameViewModel: GameViewModel = viewModel(), player: Player, navCo
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            gameViewModel.leaveGame()
-                            navController.navigate(Screen.LobbyScreen.route)
+                            navController.navigate(Screen.HomeScreen.route)
                         }
                     ) {
                         Icon(
                             Icons.Default.ArrowBack,
                             contentDescription = "back_icon",
+                            tint = Color.White
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            navController.navigate(Screen.ProfileScreen.route)
+                        }
+                    ) {
+                        Icon(
+                            Icons.Filled.AccountCircle, contentDescription = "Profile",
                             tint = Color.White
                         )
                     }
@@ -89,109 +127,68 @@ fun GameScreen(gameViewModel: GameViewModel = viewModel(), player: Player, navCo
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (isMyTurn == currentPlayer) {
-                Text(
-                    modifier = Modifier.padding(10.dp),
-                    text = "Your Turn",
-                    fontSize = 20.sp,
-                    color = Color.DarkGray
-                )
-            }
-            else {
-                Text(
-                    modifier = Modifier.padding(10.dp),
-                    text = "Opponent's Turn",
-                    fontSize = 20.sp,
-                    color = Color.DarkGray
-                )
-            }
-
-            // Continue game while board is not full and there is no winner
-            while (!gameViewModel.isBoardFull() && (gameViewModel.checkForWinner().isNotEmpty())) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.padding(10.dp)
-                ) {
-                    for (row in 0..2) {
-                        for (col in 0..2) {
-                           item { BoardView(gameViewModel, board[row][col], row, col, player) }
-                        }
+            for (row in 0 until 3) {
+                Row {
+                    for (col in 0 until 3) {
+                        CellBox(
+                            isMyTurn = isMyTurn,
+                            cellContent = board[row][col],
+                            onCellClicked = {
+                                if (isMyTurn && board[row][col].isEmpty()) {
+                                    gameViewModel.updateBoard(row, col)
+                                    gameViewModel.releaseMyTurn()
+                                } else if (board[row][col].isNotEmpty()) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = "This cell is not empty!",
+                                            duration = SnackbarDuration.Short
+                                        )
+                                    }
+                                }
+                            }
+                        )
                     }
                 }
             }
-
-            // First scenario: A draw
-            if (gameViewModel.isBoardFull() && (gameViewModel.checkForWinner().isNotEmpty())) {
-                gameViewModel.gameFinish(GameResult.DRAW)
-                GameEndDialog(GameResult.DRAW, navController)
-            }
-            // Second scenario: A win from current player
-            else if (gameViewModel.checkForWinner() == currentPlayer) {
-                gameViewModel.gameFinish(GameResult.WIN)
-                GameEndDialog(GameResult.WIN, navController)
-            }
-            else {
-                gameViewModel.gameFinish(GameResult.LOSE)
-                GameEndDialog(GameResult.LOSE, navController)
-            }
+        }
+        SnackbarHost(hostState = snackbarHostState) { data ->
+            Snackbar(snackbarData = data)
         }
     }
+
+
 }
+
 
 @Composable
-fun BoardView(gameViewModel: GameViewModel, cell: String, row: Int, col: Int, currentPlayer: Player) {
-
-    var playerAssignment: String = cell
-
-    // Buttons are only activated if it is the current player's turn
-    if (currentPlayer.isMyTurn == playerAssignment) {
-        if (playerAssignment.isEmpty()) {
-            Button(
-                onClick = {
-                    gameViewModel.makeMove(row, col)
-                },
-                modifier = Modifier.aspectRatio(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
-                shape = RectangleShape
-            ) {}
-        } else {
-            if (playerAssignment == "X") {
-                Icon(Icons.Filled.Clear, contentDescription = "player 1 symbol")
-            } else if (playerAssignment == "O") {
-                Icon(Icons.Filled.FavoriteBorder, contentDescription = "player 2 symbol")
+fun CellBox(
+    isMyTurn: Boolean,
+    cellContent: String,
+    onCellClicked: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .padding(1.dp)
+            .fillMaxSize()
+            .background(color = MaterialTheme.colorScheme.background)
+            .clickable(enabled = isMyTurn && cellContent.isEmpty()) {
+                onCellClicked()
             }
-        }
-
-    }
-    else {
-        if (playerAssignment == "X") {
-            Card( modifier = Modifier.aspectRatio(1f),
-                border = BorderStroke(1.dp, Color.DarkGray)
-            ) {
-                Icon(Icons.Filled.Clear, contentDescription = "player 1 symbol")
-            }
-        } else if (playerAssignment == "O") {
-            Card( modifier = Modifier.aspectRatio(1f),
-                border = BorderStroke(1.dp, Color.DarkGray)
-            ) {
-                Icon(Icons.Filled.FavoriteBorder, contentDescription = "player 2 symbol")
-            }
-        } else {
-            Card ( modifier = Modifier.aspectRatio(1f),
-                border = BorderStroke(1.dp, Color.DarkGray) ) { }
-        }
+    ) {
+        Text(
+            text = cellContent, // Display the content dynamically
+            fontSize = 40.sp,
+            modifier = Modifier.align(Alignment.Center)
+        )
     }
 }
+
 
 @Composable
 fun GameEndDialog(gameState: GameResult, navController: NavController) {
     AlertDialog(
-        onDismissRequest = { navController.navigate(route = Screen.HomeScreen.route) },
+        onDismissRequest = { navController.popBackStack() },
         title = {
             Text(
                 text = when (gameState) {
@@ -226,7 +223,7 @@ fun GameEndDialog(gameState: GameResult, navController: NavController) {
                     .height(50.dp)
                     .padding(8.dp)
                     .clickable {
-                        navController.navigate(route = Screen.LobbyScreen.route)
+                        navController.popBackStack()
                     },
                 fontSize = 16.sp
             )
@@ -239,11 +236,10 @@ fun GameEndDialog(gameState: GameResult, navController: NavController) {
                     .height(50.dp)
                     .padding(8.dp)
                     .clickable {
-                        navController.navigate(route = Screen.HomeScreen.route)
+                        navController.popBackStack()
                     },
                 fontSize = 16.sp
             )
-        },
-        backgroundColor = Color.LightGray
+        }
     )
 }

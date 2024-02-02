@@ -1,49 +1,68 @@
 package com.project.tictactoe.viewmodels
 
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.NavController
+import com.project.tictactoe.core.Screen
 import com.project.tictactoe.network.Game
 import com.project.tictactoe.network.Player
+import com.project.tictactoe.network.ServerState
 import com.project.tictactoe.network.SupabaseService
 import com.project.tictactoe.network.SupabaseService.joinLobby
 import com.project.tictactoe.network.SupabaseService.player
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
-class LobbyViewModel: ViewModel() {
+class LobbyViewModel() : ViewModel(){
 
     val currentPlayer = player
 
-    private val _onlineUsers = mutableStateListOf<Player>()
-    val onlineUsers: SnapshotStateList<Player>
+    private var _onlineUsers by mutableStateOf(emptyList<Player>())
+    val onlineUsers: List<Player>
         get() = _onlineUsers
 
-    private val _gameInvites = mutableStateListOf<Game>()
-    val gameInvites: SnapshotStateList<Game>
-        get() = _gameInvites
 
+    var gameInvites = mutableStateListOf<Game>()
+
+    private var _gamesInvitations by mutableStateOf(emptyList<Game>())
+    val invitations: StateFlow<List<Game>> = SupabaseService.gamesFlow
     init {
         viewModelScope.launch {
             if (currentPlayer != null) {
                 joinLobby(currentPlayer)
+                // retrieve online users
+                fetchOnlineUsers()
             }
         }
     }
 
+
+
+
     fun sendInvitation(toPlayer: Player) {
         viewModelScope.launch {
-            SupabaseService.invite(toPlayer)
+            try {
+                SupabaseService.invite(toPlayer)
+                SupabaseService.playerReady()
+                println("playerReady() from LobbyViewModel in sendInvitation()")
+            } catch (e: Exception) {
+                println("Error sendInvitation() in LobbyViewModel: ${e.message}")
+            }
         }
     }
 
     fun acceptInvitation(game: Game) {
         viewModelScope.launch {
-            SupabaseService.acceptInvite(game)
-            SupabaseService.playerReady()
-            currentPlayer!!.isInviter = false
-            currentPlayer.isMyTurn = "O"
+            try {
+                SupabaseService.acceptInvite(game)
+                SupabaseService.playerReady()
+                println("playerReady() from LobbyViewModel in acceptInvitation()")
+            } catch (e: Exception) {
+                println("Error acceptInvitation() in LobbyViewModel: ${e.message}")
+            }
         }
     }
 
@@ -56,6 +75,14 @@ class LobbyViewModel: ViewModel() {
     fun leaveLobby() {
         viewModelScope.launch {
             SupabaseService.leaveLobby()
+        }
+    }
+
+    private fun fetchOnlineUsers() {
+        viewModelScope.launch {
+            SupabaseService.usersFlow.collect { users ->
+                _onlineUsers = users
+            }
         }
     }
 }

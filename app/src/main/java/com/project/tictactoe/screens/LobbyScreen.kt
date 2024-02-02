@@ -13,11 +13,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -27,15 +34,36 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.project.tictactoe.core.Screen
+import com.project.tictactoe.network.Game
 import com.project.tictactoe.network.Player
+import com.project.tictactoe.network.ServerState
 import com.project.tictactoe.network.SupabaseService
 import com.project.tictactoe.viewmodels.LobbyViewModel
+import com.tictactoe.viewmodels.SharedViewModel
 
 @Composable
-fun LobbyScreen(lobbyViewModel: LobbyViewModel = viewModel(), navController: NavController) {
-
+fun LobbyScreen(navController: NavController) {
+    val lobbyViewModel: LobbyViewModel = viewModel()
     val currentPlayer = lobbyViewModel.currentPlayer
     val onlineUsers = lobbyViewModel.onlineUsers
+    val receivedChallenges by SupabaseService.gamesFlow.collectAsState()
+
+    val sharedViewModel: SharedViewModel = viewModel()
+
+    val serverState by sharedViewModel.serverState.collectAsState()
+
+    println("from LobbyScreen The serverState is: $serverState")
+    LaunchedEffect(serverState) {
+        if (serverState == ServerState.GAME) {
+            println("from serverState LaunchedEffect The serverState is: $serverState")
+            val currentGame = SupabaseService.currentGame
+            println("from serverState LaunchedEffect The currentGame is: $currentGame")
+            if (currentGame != null) {
+                // Assuming you have a route set up for GameScreen that accepts a game ID
+                navController.navigate(Screen.GameScreen.route)
+            }
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -101,6 +129,7 @@ fun LobbyScreen(lobbyViewModel: LobbyViewModel = viewModel(), navController: Nav
 
             // Check if there are any online users
             if (onlineUsers.isEmpty() || onlineUsers.size == 1) {
+                println("online users from LobbyScreen: $onlineUsers")
                 Text(
                     text = "No online users.",
                     textAlign = TextAlign.Center,
@@ -115,8 +144,48 @@ fun LobbyScreen(lobbyViewModel: LobbyViewModel = viewModel(), navController: Nav
                                     Row(
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        UserRow(currentPlayer = currentPlayer, user = it, lobbyViewModel = lobbyViewModel)
+                                        UserRow(
+                                            currentPlayer = currentPlayer,
+                                            user = it,
+                                            lobbyViewModel = lobbyViewModel,
+                                            sharedViewModel = sharedViewModel
+                                        )
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            // show a list of all invitations received
+            Text(
+                text = "Invitations",
+                textAlign = TextAlign.Center,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            if (receivedChallenges.isEmpty()) {
+                Text(
+                    text = "No invitations received.",
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                LazyColumn {
+                    receivedChallenges.forEach {
+                        item {
+                            if (currentPlayer != null) {
+                                if (it.player2.id == currentPlayer.id) {
+                                    InvitationRow(
+                                        currentPlayer = currentPlayer,
+                                        game = it,
+                                        lobbyViewModel = lobbyViewModel,
+                                        navController = navController
+                                    )
                                 }
                             }
                         }
@@ -128,29 +197,68 @@ fun LobbyScreen(lobbyViewModel: LobbyViewModel = viewModel(), navController: Nav
 }
 
 @Composable
-fun UserRow(currentPlayer: Player, user: Player, lobbyViewModel: LobbyViewModel) {
-    Text(
-        text = user.name,
+fun InvitationRow(
+    currentPlayer: Player?, game: Game, lobbyViewModel: LobbyViewModel,
+    navController: NavController
+) {
+    Row(
         modifier = Modifier
-            .padding(start = 10.dp, end = 10.dp)
-            .fillMaxWidth(),
-        color = Color.DarkGray,
-        fontWeight = FontWeight.Bold,
-        fontSize = 20.sp,
-        textAlign = TextAlign.Left
-    )
-    IconButton(
-        onClick = {
-            lobbyViewModel.sendInvitation(user)
-            // Player who sent an invite becomes the Inviter, and hence player 1
-            currentPlayer.isMyTurn = "X"
-            currentPlayer.isInviter = true
-        }
+            .fillMaxWidth()
+            .padding(10.dp)
     ) {
-        Icon(
-            imageVector = Icons.Filled.Send,
-            contentDescription = "send_invite",
-            tint = Color.DarkGray
-        )
+        Text(text = game.player2.name)
+        Spacer(modifier = Modifier.weight(1f))
+        Button(
+            onClick = {
+                lobbyViewModel.acceptInvitation(game)
+                navController.navigate(Screen.GameScreen.route)
+            },
+            modifier = Modifier
+                .padding(10.dp)
+                .height(40.dp)
+        ) {
+            Text(text = "Accept")
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        Button(
+            onClick = {
+                lobbyViewModel.declineInvitation(game)
+            },
+            modifier = Modifier
+                .padding(10.dp)
+                .height(40.dp)
+        ) {
+            Text(text = "Decline")
+        }
+    }
+}
+
+@Composable
+fun UserRow(currentPlayer: Player, user: Player, lobbyViewModel: LobbyViewModel, sharedViewModel: SharedViewModel) {
+    var inviteButtonText by remember { mutableStateOf("Invite") }
+
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(10.dp)
+    ) {
+        Text(text = user.name)
+        Spacer(modifier = Modifier.weight(1f))
+        Button(
+            onClick = {
+                lobbyViewModel.sendInvitation(user)
+                // show popup message,
+                inviteButtonText = "Invitation sent"
+                sharedViewModel.setChallenger(true)
+            },
+            modifier = Modifier
+                .padding(10.dp)
+                .height(40.dp)
+        ) {
+            Text(text = inviteButtonText)
+        }
+
+
     }
 }

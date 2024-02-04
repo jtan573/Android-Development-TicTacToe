@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.tictactoe.viewmodels.SharedViewModel
+import com.project.tictactoe.viewmodels.SharedViewModel
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.realtime.PresenceAction
 import io.github.jan.supabase.realtime.Realtime
@@ -35,6 +35,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 import java.util.UUID
+import kotlin.reflect.KProperty
 
 @Serializable
 data class Player(
@@ -46,7 +47,8 @@ data class Player(
     var isMyTurn: String,
     @SerialName("isInviter")
     var isInviter: Boolean = false
-)
+) {
+}
 
 @Serializable
 data class Game(
@@ -58,13 +60,20 @@ data class Game(
     val player2: Player,
     @SerialName("gameState")
     var gameState: GameEventType = GameEventType.PLAYER_READY
-)
+) {
+    operator fun getValue(nothing: Nothing?, property: KProperty<*>): Any {
+        return this
+    }
+
+
+}
 
 enum class GameResult {
     DRAW,
     SURRENDER,
     WIN,
-    LOSE;
+    LOSE,
+    IN_PROGRESS;
 }
 
 enum class ActionResult {
@@ -113,7 +122,6 @@ enum class BroadcastEvent(name: String) {
 }
 
 
-
 interface SupabaseCallback {
 
     suspend fun playerReadyHandler()
@@ -127,7 +135,8 @@ object SupabaseService : ViewModel() {
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
     private val _type: GameType = GameType.TIC_TAC_TOE
     private const val _supabaseUrl = "https://yrqrbupsuyfsyqlrfruw.supabase.co"
-    private const val _supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlycXJidXBzdXlmc3lxbHJmcnV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTczODc0NTEsImV4cCI6MjAxMjk2MzQ1MX0.LSEAvPq3gobs9eWhuxF-Ut_e8FNTvQCRumYUjoqMPlU"
+    private const val _supabaseKey =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlycXJidXBzdXlmc3lxbHJmcnV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTczODc0NTEsImV4cCI6MjAxMjk2MzQ1MX0.LSEAvPq3gobs9eWhuxF-Ut_e8FNTvQCRumYUjoqMPlU"
     private val _client =
         createSupabaseClient(supabaseUrl = _supabaseUrl, supabaseKey = _supabaseKey) {
             install(Realtime)
@@ -139,7 +148,6 @@ object SupabaseService : ViewModel() {
     private var _gameJobs = mutableListOf<Job>()
 
     val serverState = MutableStateFlow(ServerState.NOT_CONNECTED)
-
 
 
     var player: Player? = null
@@ -154,6 +162,7 @@ object SupabaseService : ViewModel() {
         private set
     var currentGame: Game? = null
         private set
+    
     var callbackHandler: SupabaseCallback? = null
 
     private val sharedViewModel: SharedViewModel = SharedViewModel()
@@ -177,7 +186,6 @@ object SupabaseService : ViewModel() {
 
     private val _gameState = MutableStateFlow<Game?>(null)
     val gameState: StateFlow<Game?> = _gameState.asStateFlow()
-
 
 
     init {
@@ -257,7 +265,7 @@ object SupabaseService : ViewModel() {
         }
     }
 
-     suspend fun leaveLobby() {
+    suspend fun leaveLobby() {
         _lobbyJobs.forEach { it.cancel() }
         _lobbyJobs.clear()
         _lobby?.untrack()
@@ -327,7 +335,9 @@ object SupabaseService : ViewModel() {
     }
 
     suspend fun invite(opponent: Player) {
+        println("invite() in SupabaseService: $opponent")
         if (player != null) {
+            println("if sats in invite()")
             val game = Game(player1 = player!!, player2 = opponent)
             sendMessageToLobby(BroadcastEvent.INVITE, Json.encodeToJsonElement(game).jsonObject)
         }
@@ -345,6 +355,7 @@ object SupabaseService : ViewModel() {
     }
 
     private suspend fun sendMessageToLobby(event: BroadcastEvent, message: JsonObject) {
+        println("sendMessageToLobby() in SupabaseService")
         _lobby?.broadcast(
             event = event.name,
             message = message
@@ -362,6 +373,7 @@ object SupabaseService : ViewModel() {
     }
 
     suspend fun playerReady() {
+
         val event = GameEvent(GameEventType.PLAYER_READY, listOf())
         sendMessageToGame(BroadcastEvent.GAME_EVENT, Json.encodeToJsonElement(event).jsonObject)
     }
@@ -421,5 +433,13 @@ object SupabaseService : ViewModel() {
     // Function to set current player
     fun setPlayer(currentPlayer: Player) {
         player = currentPlayer
+    }
+
+    fun setPlayerInviter() {
+        player?.isInviter = true
+    }
+
+    fun resetGameStartEvent() {
+        _invitationResponses.value = null
     }
 }

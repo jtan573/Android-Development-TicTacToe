@@ -39,10 +39,12 @@ import com.project.tictactoe.network.Player
 import com.project.tictactoe.network.ServerState
 import com.project.tictactoe.network.SupabaseService
 import com.project.tictactoe.viewmodels.LobbyViewModel
-import com.tictactoe.viewmodels.SharedViewModel
+import com.project.tictactoe.viewmodels.SharedViewModel
+
 
 @Composable
 fun LobbyScreen(navController: NavController) {
+
     val lobbyViewModel: LobbyViewModel = viewModel()
     val currentPlayer = lobbyViewModel.currentPlayer
     val onlineUsers = lobbyViewModel.onlineUsers
@@ -50,18 +52,14 @@ fun LobbyScreen(navController: NavController) {
 
     val sharedViewModel: SharedViewModel = viewModel()
 
-    val serverState by sharedViewModel.serverState.collectAsState()
+    val serverState by SupabaseService.serverState.collectAsState()
 
-    println("from LobbyScreen The serverState is: $serverState")
+
     LaunchedEffect(serverState) {
+        println("serverState from LaunchedEffect in LobbyScreen.")
         if (serverState == ServerState.GAME) {
-            println("from serverState LaunchedEffect The serverState is: $serverState")
-            val currentGame = SupabaseService.currentGame
-            println("from serverState LaunchedEffect The currentGame is: $currentGame")
-            if (currentGame != null) {
-                // Assuming you have a route set up for GameScreen that accepts a game ID
-                navController.navigate(Screen.GameScreen.route)
-            }
+            println("Navigating to GameScreen")
+            navController.navigate(Screen.GameScreen.route)
         }
     }
 
@@ -129,7 +127,7 @@ fun LobbyScreen(navController: NavController) {
 
             // Check if there are any online users
             if (onlineUsers.isEmpty() || onlineUsers.size == 1) {
-                println("online users from LobbyScreen: $onlineUsers")
+                println("online users from LobbyScreen: " + onlineUsers)
                 Text(
                     text = "No online users.",
                     textAlign = TextAlign.Center,
@@ -198,7 +196,8 @@ fun LobbyScreen(navController: NavController) {
 
 @Composable
 fun InvitationRow(
-    currentPlayer: Player?, game: Game, lobbyViewModel: LobbyViewModel,
+    currentPlayer: Player?, game: Game,
+    lobbyViewModel: LobbyViewModel,
     navController: NavController
 ) {
     Row(
@@ -211,7 +210,6 @@ fun InvitationRow(
         Button(
             onClick = {
                 lobbyViewModel.acceptInvitation(game)
-                navController.navigate(Screen.GameScreen.route)
             },
             modifier = Modifier
                 .padding(10.dp)
@@ -234,7 +232,12 @@ fun InvitationRow(
 }
 
 @Composable
-fun UserRow(currentPlayer: Player, user: Player, lobbyViewModel: LobbyViewModel, sharedViewModel: SharedViewModel) {
+fun UserRow(
+    currentPlayer: Player,
+    user: Player,
+    lobbyViewModel: LobbyViewModel,
+    sharedViewModel: SharedViewModel
+) {
     var inviteButtonText by remember { mutableStateOf("Invite") }
 
 
@@ -248,9 +251,9 @@ fun UserRow(currentPlayer: Player, user: Player, lobbyViewModel: LobbyViewModel,
         Button(
             onClick = {
                 lobbyViewModel.sendInvitation(user)
-                // show popup message,
+                println("print from lobbyscreen: sendInvitation()")
+                SupabaseService.player?.isInviter = true
                 inviteButtonText = "Invitation sent"
-                sharedViewModel.setChallenger(true)
             },
             modifier = Modifier
                 .padding(10.dp)
@@ -258,7 +261,5 @@ fun UserRow(currentPlayer: Player, user: Player, lobbyViewModel: LobbyViewModel,
         ) {
             Text(text = inviteButtonText)
         }
-
-
     }
 }

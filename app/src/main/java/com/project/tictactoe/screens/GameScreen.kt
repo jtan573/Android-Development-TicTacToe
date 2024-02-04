@@ -1,90 +1,68 @@
 package com.tictactoe.screen
 
-
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.Icon
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.compose.runtime.rememberCoroutineScope
-import com.tictactoe.viewmodels.SharedViewModel
-import kotlinx.coroutines.launch
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.runtime.remember
-import androidx.compose.material.TopAppBar
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import com.project.tictactoe.network.GameResult
 import com.project.tictactoe.core.Screen
+import com.project.tictactoe.network.GameResult
 import com.project.tictactoe.network.SupabaseService
 import com.project.tictactoe.viewmodels.GameViewModel
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GameScreen(navController: NavController, gameId: String? = null) {
-    val sharedViewModel: SharedViewModel = viewModel()
     val gameViewModel: GameViewModel = viewModel()
-    val isMyTurn by sharedViewModel.isMyTurn.collectAsState()
+    // Assuming isMyTurn and other states are properly managed in GameViewModel or SharedViewModel
+    var isMyTurn: State<Boolean> = gameViewModel.isMyTurn
 
-    val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
-    val opponentMove by sharedViewModel.opponentMove.collectAsState()
+    val gameBoard by gameViewModel.gameBoard
+    val gameResult by gameViewModel.gameResult
 
 
-    // when opponentMove varianle is not null, then update the board with opponent's move
-    if (opponentMove != null) {
-        gameViewModel.updateBoard(opponentMove!!.first, opponentMove!!.second, "O")
-    }
-
-    LaunchedEffect(isMyTurn) {
-        if (isMyTurn) {
-            scope.launch {
-                snackbarHostState.showSnackbar(
-                    message = "It's your turn!",
-                    duration = SnackbarDuration.Short
-                )
-            }
-        }
-    }
-
-    val board = gameViewModel.getBoard()
-    if (GameResult == GameResult.WIN || GameResult == GameResult.LOSE || GameResult == GameResult.DRAW) {
-        GameEndDialog(gameState = GameResult, navController = navController)
+    if (gameResult == GameResult.WIN || gameResult == GameResult.LOSE || gameResult == GameResult.DRAW) {
+        GameEndDialog(gameResult, navController)
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 modifier = Modifier
-                    .height(70.dp),
+                    .height(70.dp)
+                    .background(Color.Gray),
                 title = {
                     Text(
                         modifier = Modifier.padding(10.dp),
@@ -119,41 +97,50 @@ fun GameScreen(navController: NavController, gameId: String? = null) {
                         )
                     }
                 },
-                backgroundColor = Color.DarkGray
             )
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(paddingValues),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            for (row in 0 until 3) {
-                Row {
-                    for (col in 0 until 3) {
-                        CellBox(
-                            isMyTurn = isMyTurn,
-                            cellContent = board[row][col],
-                            onCellClicked = {
-                                if (isMyTurn && board[row][col].isEmpty()) {
-                                    gameViewModel.updateBoard(row, col)
-                                    gameViewModel.releaseMyTurn()
-                                } else if (board[row][col].isNotEmpty()) {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar(
-                                            message = "This cell is not empty!",
-                                            duration = SnackbarDuration.Short
-                                        )
-                                    }
-                                }
-                            }
-                        )
-                    }
+            Text(
+                text = "Player: ${SupabaseService.currentGame?.player1?.name} vs ${
+                    SupabaseService.currentGame?.player2?.name
+                }", fontSize = 30.sp, modifier = Modifier.padding(16.dp)
+            )
+
+            Text(
+                text = "Your symbol: ${gameViewModel.currentPlayer.value}", fontSize = 16.sp
+            )
+            Text(
+                text = "Opponent's symbol: ${if (gameViewModel.currentPlayer.value == "X") "O" else "X"}",
+            )
+
+            if (isMyTurn.value) {
+                Text(text = "Your turn", fontSize = 16.sp)
+            } else {
+                Text(text = "Opponent's turn", fontSize = 16.sp)
+            }
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                // Other parameters
+            ) {
+                items(9) { index ->
+                    val row = index / 3
+                    val col = index % 3
+                    CellBox(
+                        isMyTurn = isMyTurn,
+                        cellContent = gameBoard[row][col],
+                        onCellClicked = {
+                            gameViewModel.onCellClicked(row, col)
+                        }
+                    )
                 }
             }
-        }
-        SnackbarHost(hostState = snackbarHostState) { data ->
-            Snackbar(snackbarData = data)
         }
     }
 
@@ -163,23 +150,30 @@ fun GameScreen(navController: NavController, gameId: String? = null) {
 
 @Composable
 fun CellBox(
-    isMyTurn: Boolean,
+    isMyTurn: State<Boolean>,
     cellContent: String,
     onCellClicked: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .padding(1.dp)
-            .fillMaxSize()
-            .background(color = MaterialTheme.colorScheme.background)
-            .clickable(enabled = isMyTurn && cellContent.isEmpty()) {
+    val context = LocalContext.current
+    Button(
+        onClick = {
+            if (isMyTurn.value && cellContent.isEmpty()) {
                 onCellClicked()
+            } else {
+                val message =
+                    if (cellContent.isEmpty()) "It's not your turn" else "Cell already filled"
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             }
+        },
+        modifier = Modifier
+            .aspectRatio(1f)
+            .padding(2.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+        shape = RectangleShape
     ) {
         Text(
-            text = cellContent, // Display the content dynamically
-            fontSize = 40.sp,
-            modifier = Modifier.align(Alignment.Center)
+            text = cellContent,
+            fontSize = 30.sp
         )
     }
 }
@@ -236,7 +230,7 @@ fun GameEndDialog(gameState: GameResult, navController: NavController) {
                     .height(50.dp)
                     .padding(8.dp)
                     .clickable {
-                        navController.popBackStack()
+                        navController.navigate(Screen.HomeScreen.route)
                     },
                 fontSize = 16.sp
             )

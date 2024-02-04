@@ -1,4 +1,4 @@
-package com.tictactoe.viewmodels
+package com.project.tictactoe.viewmodels
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,11 +37,14 @@ class SharedViewModel : ViewModel(), SupabaseCallback {
     private val _invitationResponse = MutableStateFlow<Game?>(null)
     val invitationResponse: StateFlow<Game?> = _invitationResponse
 
-    private val _serverState = MutableStateFlow<ServerState>(ServerState.NOT_CONNECTED)
+    private val _serverState = MutableStateFlow<ServerState>(ServerState.LOBBY)
     val serverState: StateFlow<ServerState> = _serverState.asStateFlow()
 
     private val _challenger = MutableStateFlow<Boolean>(false)
     val challenger: StateFlow<Boolean> = _challenger.asStateFlow()
+
+
+
 
     fun setChallenger(challenger: Boolean) {
         _challenger.value = challenger
@@ -51,6 +54,7 @@ class SharedViewModel : ViewModel(), SupabaseCallback {
     fun onInvitationAccepted(game: Game) {
         viewModelScope.launch {
             _invitationResponse.emit(game)
+            // set isInviter in player to true
         }
     }
 
@@ -78,6 +82,7 @@ class SharedViewModel : ViewModel(), SupabaseCallback {
      */
     override suspend fun playerReadyHandler() {
         _opponentReady.value = true
+        println("playerReadyHandler() from SharedViewModel")
     }
 
     /**

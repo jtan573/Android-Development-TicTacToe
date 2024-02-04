@@ -14,7 +14,8 @@ import androidx.navigation.compose.rememberNavController
 import com.project.tictactoe.core.Screen
 import com.project.tictactoe.network.Player
 import com.project.tictactoe.network.SupabaseService
-import com.project.tictactoe.network.SupabaseService.setPlayer
+import com.tictactoe.screen.GameScreen
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,7 +34,7 @@ fun Navigation() {
         ) {
             composable(Screen.WelcomeScreen.route) {
                 WelcomeScreen(navController = navController, player = currentPlayer)
-                setPlayer(currentPlayer)
+                SupabaseService.setPlayer(currentPlayer)
             }
             composable(Screen.HomeScreen.route) {
                 HomeScreen(navController = navController, player = currentPlayer)
@@ -51,7 +52,7 @@ fun Navigation() {
                 InvitationScreen(navController = navController)
             }
             composable(Screen.GameScreen.route) {
-                GameScreen(navController = navController, player = currentPlayer)
+                GameScreen(navController = navController)
             }
         }
     }

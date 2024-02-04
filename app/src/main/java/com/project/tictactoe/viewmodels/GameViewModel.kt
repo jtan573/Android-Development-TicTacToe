@@ -22,119 +22,164 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import com.project.tictactoe.network.ActionResult
+import com.project.tictactoe.network.SupabaseCallback
+import com.project.tictactoe.viewmodels.SharedViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-class GameViewModel: ViewModel() {
+//Game(id=f321a542-c717-401e-9e8d-b47f4a99f4cb,
+// player1=Player(id=0d8e8374-4059-4a5e-9c6f-18074e50fac7, name=habib, isMyTurn=, isInviter=false),
+// player2=Player(id=f78fe7a7-4d64-45fe-a8e2-57ac6ef25c41, name=rohi, isMyTurn=, isInviter=false),
+// gameState=PLAYER_READY)
 
-    private val boardSize = 3
-    private val player1Symbol = "X"
-    private val player2Symbol = "O"
+class GameViewModel() : ViewModel(), SupabaseCallback {
+    val sharedViewModel: SharedViewModel = SharedViewModel()
 
-    // 2D array representing the game board
-    private val gameBoard = Array(boardSize) { Array(boardSize) { "" } }
+    private val _gameBoard: MutableState<Array<Array<String>>> =
+        mutableStateOf(Array(3) { Array(3) { "" } })
+    val gameBoard: MutableState<Array<Array<String>>> = _gameBoard
 
-    // Variable to keep track of the current player
-    private var currentPlayer = player1Symbol
+    // Track the current player's turn; assume "X" starts
+    private val _currentPlayer = mutableStateOf("")
+    val currentPlayer: State<String> = _currentPlayer
 
-    // Get game board cells
-    fun getBoard(): Array<Array<String>> {
-        return gameBoard
-    }
+    var countMoves: Int = 0
 
-    fun getCurrentPlayer(): String {
-        return currentPlayer
-    }
+    private val _isMyTurn = mutableStateOf(false)
+    val isMyTurn: State<Boolean> = _isMyTurn
 
-    // Function to make a move on the board
-    fun makeMove(row: Int, col: Int) {
-        if (gameBoard[row][col].isEmpty()) {
-            gameBoard[row][col] = currentPlayer
-            checkForWinner()
-            switchPlayer()
-            releaseTurn()
+    private val _gameResult = mutableStateOf(GameResult.IN_PROGRESS)
+    val gameResult: State<GameResult> = _gameResult
+
+
+    init {
+        SupabaseService.callbackHandler = this
+        if (SupabaseService.currentGame?.player1 == SupabaseService.player) {
+            _currentPlayer.value = "X"
+        } else {
+            _currentPlayer.value = "O"
         }
-    }
-
-    // Function to switch to the next player
-    private fun switchPlayer() {
-        currentPlayer = if (currentPlayer == player1Symbol) player2Symbol else player1Symbol
-    }
-
-    // Function to check for a winner
-    fun checkForWinner(): String {
-        // three in a row
-        for (row in 0..2) {
-            // Check if card in the row was chosen by any player before, else move to next row immediately
-            if (gameBoard[row][0].isEmpty() || gameBoard[row][1].isEmpty() || gameBoard[row][2].isEmpty())
-                continue
-            if ((gameBoard[row][0] == gameBoard[row][1]) &&
-                (gameBoard[row][1] == gameBoard[row][2])
-            ) {
-                return gameBoard[row][0]
+        if (SupabaseService.player?.isInviter == true) {
+            _isMyTurn.value = true
+        } else {
+            _isMyTurn.value = false
+        }
+        // Set the initial game board
+        for (row in 0 until 3) {
+            for (col in 0 until 3) {
+                _gameBoard.value[row][col] = ""
             }
         }
-
-        // three in a column
-        for (col in 0..2) {
-            // Check if card in the column was chosen by any player before, else move to next row immediately
-            if (gameBoard[0][col].isEmpty() || gameBoard[1][col].isEmpty() || gameBoard[2][col].isEmpty())
-                continue
-            if ((gameBoard[0][col] == gameBoard[1][col]) &&
-                (gameBoard[1][col] == gameBoard[2][col])) {
-                return gameBoard[0][col]
-            }
-        }
-
-        // three in a diagonal (sloping DOWN left to right)
-        if (gameBoard[0][0].isEmpty() || gameBoard[1][1].isEmpty() || gameBoard[2][2].isEmpty()) {
-            return ""
-        }
-        else {
-            if ((gameBoard[0][0] == gameBoard[1][1]) &&
-                (gameBoard[1][1] == gameBoard[2][2]))
-                return gameBoard[0][0]
-        }
-
-        // three in a diagonal (sloping UP left to right)
-        if (gameBoard[2][0].isEmpty() || gameBoard[1][1].isEmpty() || gameBoard[0][2].isEmpty()) {
-            return ""
-        }
-        else {
-            if ((gameBoard[2][0] == gameBoard[1][1]) &&
-                (gameBoard[1][1] == gameBoard[0][2]))
-                return gameBoard[2][0]
-        }
-        return ""
     }
 
-    fun isBoardFull(): Boolean {
-        for (row in 0..2) {
-            for (col in 0..2) {
-                if (gameBoard[row][col].isEmpty()) {
-                    return false
+    fun onCellClicked(row: Int, col: Int) {
+        if (gameBoard.value[row][col].isEmpty()) { // Check if cell is empty
+            updateBoard(row, col, currentPlayer.value)
+            viewModelScope.launch {
+                SupabaseService.sendTurn(row, col)
+                SupabaseService.releaseTurn()
+                _isMyTurn.value = false
+                val result = checkForWin()
+                if (result) {
+                    SupabaseService.gameFinish(GameResult.LOSE)
+                    _gameResult.value = GameResult.WIN
+                } else if (countMoves == 9) {
+                    SupabaseService.gameFinish(GameResult.DRAW)
+                    _gameResult.value = GameResult.DRAW
                 }
             }
-        }
-        return true
-    }
 
-    fun releaseTurn() {
-        viewModelScope.launch {
-            SupabaseService.releaseTurn()
-        }
-        viewModelScope.launch {
-            SupabaseService.sendTurn()
         }
     }
 
-    fun gameFinish(status: GameResult) {
-        viewModelScope.launch {
-            SupabaseService.gameFinish(status)
+    private fun updateBoard(row: Int, col: Int, symbol: String) {
+        val newBoard = gameBoard.value.copyOf() // Copy the current board
+        newBoard[row][col] = symbol // Update the cell with the player's symbol
+        _gameBoard.value = newBoard
+        countMoves++
+    }
+
+    private fun checkForWin(): Boolean {
+        // Check rows for a win
+        for (i in 0 until 3) {
+            if (gameBoard.value[i][0] == gameBoard.value[i][1] &&
+                gameBoard.value[i][0] == gameBoard.value[i][2] &&
+                gameBoard.value[i][0].isNotEmpty()
+            ) {
+                return true
+            }
+        }
+
+        // Check columns for a win
+        for (i in 0 until 3) {
+            if (gameBoard.value[0][i] == gameBoard.value[1][i] &&
+                gameBoard.value[0][i] == gameBoard.value[2][i] &&
+                gameBoard.value[0][i].isNotEmpty()
+            ) {
+                return true
+            }
+        }
+
+        // Check diagonals for a win
+        if (gameBoard.value[0][0] == gameBoard.value[1][1] &&
+            gameBoard.value[0][0] == gameBoard.value[2][2] &&
+            gameBoard.value[0][0].isNotEmpty()
+        ) {
+            return true
+        }
+        if (gameBoard.value[0][2] == gameBoard.value[1][1] &&
+            gameBoard.value[0][2] == gameBoard.value[2][0] &&
+            gameBoard.value[0][2].isNotEmpty()
+        ) {
+            return true
+        }
+
+        return false
+    }
+
+    // Reset the game board for a new game
+    fun resetGame() {
+        for (row in 0 until 3) {
+            for (col in 0 until 3) {
+                _gameBoard.value[row][col] = ""
+            }
+        }
+        countMoves = 0
+    }
+
+    override suspend fun playerReadyHandler() {
+        println("playerReadyHandler() from GameViewModel")
+    }
+
+    /**
+     * This will be called when the other player releases the turn and it is your turn.
+     */
+    override suspend fun releaseTurnHandler() {
+        _isMyTurn.value = true
+    }
+
+    override suspend fun actionHandler(x: Int, y: Int) {
+        withContext(Dispatchers.Main)
+        {
+            updateBoard(x, y, if (currentPlayer.value == "X") "O" else "X")
         }
     }
 
-    fun leaveGame() {
-        viewModelScope.launch {
-            SupabaseService.leaveGame()
-        }
+    override suspend fun answerHandler(status: ActionResult) {
+        TODO("Not yet implemented")
     }
+
+    override suspend fun finishHandler(status: GameResult) {
+        gameFinished(status)
+    }
+
+    private fun gameFinished(status: GameResult) {
+        _gameResult.value = status
+    }
+
 }

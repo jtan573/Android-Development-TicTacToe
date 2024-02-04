@@ -6,9 +6,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import com.project.tictactoe.core.Screen
+import com.project.tictactoe.network.ActionResult
 import com.project.tictactoe.network.Game
+import com.project.tictactoe.network.GameResult
 import com.project.tictactoe.network.Player
 import com.project.tictactoe.network.ServerState
+import com.project.tictactoe.network.SupabaseCallback
 import com.project.tictactoe.network.SupabaseService
 import com.project.tictactoe.network.SupabaseService.joinLobby
 import com.project.tictactoe.network.SupabaseService.player
@@ -26,6 +29,8 @@ class LobbyViewModel() : ViewModel(){
 
 
     var gameInvites = mutableStateListOf<Game>()
+
+
 
     private var _gamesInvitations by mutableStateOf(emptyList<Game>())
     val invitations: StateFlow<List<Game>> = SupabaseService.gamesFlow
@@ -47,7 +52,9 @@ class LobbyViewModel() : ViewModel(){
             try {
                 SupabaseService.invite(toPlayer)
                 SupabaseService.playerReady()
-                println("playerReady() from LobbyViewModel in sendInvitation()")
+
+                println("print from sendInvitation()")
+                println("SupabaseService.serverState: " + SupabaseService.serverState.value)
             } catch (e: Exception) {
                 println("Error sendInvitation() in LobbyViewModel: ${e.message}")
             }
@@ -85,4 +92,6 @@ class LobbyViewModel() : ViewModel(){
             }
         }
     }
+
+
 }

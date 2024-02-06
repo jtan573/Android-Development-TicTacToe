@@ -31,7 +31,6 @@ class LobbyViewModel() : ViewModel(){
     var gameInvites = mutableStateListOf<Game>()
 
 
-
     private var _gamesInvitations by mutableStateOf(emptyList<Game>())
     val invitations: StateFlow<List<Game>> = SupabaseService.gamesFlow
     init {
@@ -43,9 +42,6 @@ class LobbyViewModel() : ViewModel(){
             }
         }
     }
-
-
-
 
     fun sendInvitation(toPlayer: Player) {
         viewModelScope.launch {

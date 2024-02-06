@@ -64,8 +64,6 @@ data class Game(
     operator fun getValue(nothing: Nothing?, property: KProperty<*>): Any {
         return this
     }
-
-
 }
 
 enum class GameResult {
@@ -187,7 +185,6 @@ object SupabaseService : ViewModel() {
     private val _gameState = MutableStateFlow<Game?>(null)
     val gameState: StateFlow<Game?> = _gameState.asStateFlow()
 
-
     init {
         setupInvitationResponseListener()
         setupInvitationListener()
@@ -233,24 +230,30 @@ object SupabaseService : ViewModel() {
                         )
                     ) {
                         games.add(game)
-                        val updatedGames = games.toMutableList().apply { add(game) }
+                        val updatedGames = games.toMutableList()
                         _gamesFlow.value = updatedGames
-
                     }
                 }
                 .launchIn(coroutineScope)
             _lobbyJobs.add(gameInvitations)
+
             val gameAccepts = lobby.broadcastFlow<Game>(BroadcastEvent.ACCEPT.name)
                 .onEach { game ->
                     if (game.player1.id == player.id) {
                         joinGame(game)
+                        games.remove(game)
+                        val updatedGames = games.toMutableList()
+                        _gamesFlow.value = updatedGames
                     }
                 }
                 .launchIn(coroutineScope)
             _lobbyJobs.add(gameAccepts)
+
             val gameDeclines = lobby.broadcastFlow<Game>(BroadcastEvent.DECLINE.name)
                 .onEach { game ->
                     games.remove(game)
+                    val updatedGames = games.toMutableList()
+                    _gamesFlow.value = updatedGames
                 }
                 .launchIn(coroutineScope)
             _lobbyJobs.add(gameDeclines)
@@ -345,6 +348,8 @@ object SupabaseService : ViewModel() {
 
     suspend fun acceptInvite(game: Game) {
         games.clear()
+        val updatedGames = games.toMutableList()
+        _gamesFlow.value = updatedGames
         sendMessageToLobby(BroadcastEvent.ACCEPT, Json.encodeToJsonElement(game).jsonObject)
         joinGame(game)
     }

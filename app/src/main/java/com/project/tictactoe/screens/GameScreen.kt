@@ -81,7 +81,7 @@ fun GameScreen(navController: NavController, gameId: String? = null) {
                         Icon(
                             Icons.Default.ArrowBack,
                             contentDescription = "back_icon",
-                            tint = Color.White
+                            tint = Color.DarkGray
                         )
                     }
                 },

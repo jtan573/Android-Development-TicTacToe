@@ -240,7 +240,6 @@ fun UserRow(
 ) {
     var inviteButtonText by remember { mutableStateOf("Invite") }
 
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
